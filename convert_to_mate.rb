@@ -26,22 +26,33 @@ def identify_element(element, matestack_children = [])
     SQL
   when "p"
     <<~SQL.chomp
-    paragraph text: "#{element.text}"
+    paragraph #{identify_attributes(element, true)}"
+    SQL
+  when "a"
+    <<~SQL.chomp
+    link #{identify_attributes(element, true)}"
     SQL
   else
     return matestack_children
   end
 end
 
-def identify_attributes(element)
-  return nil unless element.attributes.any?
+SPECIAL_ATTRIBUTES = {
+  "href": "path"
+}
 
-  element.attributes.map do |attribute|
-    "#{attribute[1].name}:\"#{attribute[1].value}\""
-  end.join(",\s")
+def identify_attributes(element, no_children = false)
+  matt_attributes = element.attributes.to_a.map do |attribute|
+    name = SPECIAL_ATTRIBUTES[attribute[1].name] || attribute[1].name
+    "#{name}:\"#{attribute[1].value}\""
+  end
+
+  matt_attributes << "text:\"#{element.text}" if no_children
+  matt_attributes.join(",\s")
 end
 
-converted = File.write("matestack_component.rb", identify_elements(@doc.elements.first).flatten.join)
-result = Rufo::Command.new(false, 0, "", :log).format_file("matestack_component.rb")
+result = identify_elements(@doc.elements.first).flatten.join
+File.write("matestack_component.rb", result)
+Rufo::Command.new(false, 0, "", :log).format_file("matestack_component.rb")
 puts File.read("matestack_component.rb")
 File.delete("matestack_component.rb")
