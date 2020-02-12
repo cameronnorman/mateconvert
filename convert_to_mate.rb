@@ -2,10 +2,14 @@ require 'nokogiri'
 require 'pry'
 require 'rufo'
 
-html = File.read("test.html")
+SPECIAL_ATTRIBUTES = {
+  "href": "path"
+}
 
-@doc = Nokogiri::HTML(html)
-@result = {}
+MATE_ELEMENT_NAMES = {
+  "p" => "paragraph",
+  "a" => "link"
+}
 
 def identify_elements(element)
   if (element.elements.any?)
@@ -17,29 +21,19 @@ def identify_elements(element)
 end
 
 def identify_element(element, matestack_children = [])
-  case element.name
-  when "div"
+  element_name = MATE_ELEMENT_NAMES[element.name] || element.name
+  if matestack_children.any?
     <<~SQL.chomp
-    div #{identify_attributes(element)} do
+    #{element_name} #{identify_attributes(element)} do
     #{matestack_children.join("\n")}
     end
     SQL
-  when "p"
-    <<~SQL.chomp
-    paragraph #{identify_attributes(element, true)}"
-    SQL
-  when "a"
-    <<~SQL.chomp
-    link #{identify_attributes(element, true)}"
-    SQL
   else
-    return matestack_children
+    <<~SQL.chomp
+    #{element_name} #{identify_attributes(element, true)}
+    SQL
   end
 end
-
-SPECIAL_ATTRIBUTES = {
-  "href": "path"
-}
 
 def identify_attributes(element, no_children = false)
   matt_attributes = element.attributes.to_a.map do |attribute|
@@ -47,11 +41,15 @@ def identify_attributes(element, no_children = false)
     "#{name}:\"#{attribute[1].value}\""
   end
 
-  matt_attributes << "text:\"#{element.text}" if no_children
+  matt_attributes << "text:\"#{element.text.strip}\"" if element.children.first&.text.to_s.strip != ""
   matt_attributes.join(",\s")
 end
 
-result = identify_elements(@doc.elements.first).flatten.join
+html = File.read("test.html")
+
+@doc = Nokogiri::HTML(html)
+@result = {}
+result = identify_elements(@doc.elements.first)
 File.write("matestack_component.rb", result)
 Rufo::Command.new(false, 0, "", :log).format_file("matestack_component.rb")
 puts File.read("matestack_component.rb")
