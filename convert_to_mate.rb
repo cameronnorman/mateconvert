@@ -38,7 +38,11 @@ end
 def identify_attributes(element, no_children = false)
   matt_attributes = element.attributes.to_a.map do |attribute|
     name = SPECIAL_ATTRIBUTES[attribute[1].name] || attribute[1].name
-    "#{name}:\"#{attribute[1].value}\""
+    if name.include? '-'
+      "'#{name}':\"#{attribute[1].value}\""
+    else
+      "#{name}:\"#{attribute[1].value}\""
+    end
   end
 
   matt_attributes << "text:\"#{element.text.strip}\"" if element.children.first&.text.to_s.strip != ""
